@@ -128,6 +128,8 @@ function cmd_key_new()
 	datastore.keys.push(walletKey);
 
 	write_datastore(function(err) {});
+
+	console.log(addr.toString());
 }
 
 function main()
