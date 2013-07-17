@@ -16,7 +16,7 @@ Theory of operation
 -------------------
 All operation revolves around an internal database, which is modified
 via execution of a command operation:
-	1. wally reads transaction state file (JSON). Default "walletdb.aes".
+	1. wally reads wallet state file (JSON). Default "walletdb.aes".
 	2. wally executes command given on command line,
 	   updating wallet state.
 	3. wally writes wallet state file, overwriting

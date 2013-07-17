@@ -36,7 +36,7 @@ function list_commands()
 	s += "clean\t\tRemove transaction state database\n";
 	s += "dump\t\tInspect internal transaction state\n";
 	s += "help\t\tList this command summary\n";
-	s += "init\t\tInitialize new transaction state database\n";
+	s += "init [network]\tInitialize new transaction state database\n";
 	s += "key.new\t\tGenerate new ECDSA private key (bitcoin address\n";
 	console.log(s);
 }
