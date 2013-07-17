@@ -5,6 +5,10 @@
 var fs = require('fs');
 var util = require('util');
 var EncFile = require('../EncFile');
+var KeyModule = require('libcoin/Key');
+var coinUtil = require('libcoin/util/util');
+var networks = require('libcoin/networks');
+var Address = require('libcoin/Address').class();
 var ENC_METHOD = 'aes-256-cbc';
 
 var argv = require('optimist')
@@ -20,8 +24,11 @@ var walletdb_fn = argv.file ? argv.file : 'walletdb.aes';
 
 // blank wallet
 var datastore = {
+	network: 'livenet',
 	version: 1,
+	keys: [],
 };
+var network = undefined;
 
 function list_commands()
 {
@@ -30,7 +37,27 @@ function list_commands()
 	s += "dump\t\tInspect internal transaction state\n";
 	s += "help\t\tList this command summary\n";
 	s += "init\t\tInitialize new transaction state database\n";
+	s += "key.new\t\tGenerate new ECDSA private key (bitcoin address\n";
 	console.log(s);
+}
+
+function network_load(netname)
+{
+	switch (netname) {
+	case "mainnet":
+	case "livenet":
+		network = networks.livenet;
+		break;
+	case "testnet":
+		network = networks.testnet;
+		break;
+	default:
+		console.error("Unsupported network", netname);
+		break;
+	}
+
+	// store+canonicalize name
+	datastore['network'] = network.name;
 }
 
 function remove_datastore(callback)
@@ -63,6 +90,34 @@ function write_datastore(callback)
 	}
 }
 
+function cmd_init()
+{
+	if (argv._.length > 1)
+		network_load(argv._[1]);
+	else
+		network_load('livenet');
+
+	write_datastore(function(err) {});
+}
+
+function cmd_key_new()
+{
+	var newKey = KeyModule.Key.generateSync();
+	var pubKey = newKey.public.toString('hex');
+	var pubKeyHash = coinUtil.sha256ripe160(newKey.public);
+	var addr = new Address(network.addressPubkey, pubKeyHash);
+	var walletKey = {
+		created: Math.round(Date.now() / 1000),
+		priv: newKey.private.toString('hex'),
+		pub: pubKey,
+		addr: addr.toString(),
+	};
+
+	datastore.keys.push(walletKey);
+
+	write_datastore(function(err) {});
+}
+
 function main()
 {
 	if (argv._.length == 0) {
@@ -75,6 +130,7 @@ function main()
 	
 	if (cmd != 'init' && cmd != 'help' && cmd != 'clean') {
 		read_datastore(function(err) {});
+		network_load(datastore['network']);
 	}
 
 	switch (cmd) {
@@ -96,7 +152,11 @@ function main()
 		return;
 	
 	case "init":
-		write_datastore(function(err) {});
+		cmd_init();
+		break;
+
+	case "key.new":
+		cmd_key_new();
 		break;
 	}
 }
