@@ -41,6 +41,12 @@ function list_commands()
 	console.log(s);
 }
 
+// current time, in seconds
+function curtime()
+{
+	return Math.round(Date.now() / 1000);
+}
+
 function network_load(netname)
 {
 	switch (netname) {
@@ -90,6 +96,12 @@ function write_datastore(callback)
 	}
 }
 
+function wallet_load()
+{
+	read_datastore(function(err) {});
+	network_load(datastore['network']);
+}
+
 function cmd_init()
 {
 	if (argv._.length > 1)
@@ -107,7 +119,7 @@ function cmd_key_new()
 	var pubKeyHash = coinUtil.sha256ripe160(newKey.public);
 	var addr = new Address(network.addressPubkey, pubKeyHash);
 	var walletKey = {
-		created: Math.round(Date.now() / 1000),
+		created: curtime(),
 		priv: newKey.private.toString('hex'),
 		pub: pubKey,
 		addr: addr.toString(),
@@ -129,8 +141,7 @@ function main()
 	var cmd = argv._[0];
 	
 	if (cmd != 'init' && cmd != 'help' && cmd != 'clean') {
-		read_datastore(function(err) {});
-		network_load(datastore['network']);
+		wallet_load();
 	}
 
 	switch (cmd) {
