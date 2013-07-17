@@ -1,0 +1,105 @@
+#!/usr/bin/env node
+// MIT/X11-like license.  See LICENSE.txt.
+// Copyright 2013 BitPay, Inc.
+
+var fs = require('fs');
+var util = require('util');
+var EncFile = require('../EncFile');
+var ENC_METHOD = 'aes-256-cbc';
+
+var argv = require('optimist')
+	.usage('Bitcoin SPV wallet client\nUsage: $0 [options] COMMAND [command parameters]')
+	.alias('f', 'file')
+	.describe('f', 'Load/store wallet to/from encrypted JSON file')
+	.alias('P', 'pass')
+	.describe('P', 'Passphrase')
+	.demand(['P'])
+	.argv
+;
+var walletdb_fn = argv.file ? argv.file : 'walletdb.aes';
+
+// blank wallet
+var datastore = {
+	version: 1,
+};
+
+function list_commands()
+{
+	var s = "wally command summary:\n";
+	s += "clean\t\tRemove transaction state database\n";
+	s += "dump\t\tInspect internal transaction state\n";
+	s += "help\t\tList this command summary\n";
+	s += "init\t\tInitialize new transaction state database\n";
+	console.log(s);
+}
+
+function remove_datastore(callback)
+{
+	fs.exists(walletdb_fn, function(exists) {
+		if (exists)
+			fs.unlink(walletdb_fn, function(err) {
+				if (err) throw err;
+				callback();
+			});
+	});
+}
+
+function read_datastore(callback)
+{
+	datastore = EncFile.readJFileSync(ENC_METHOD, argv.pass, walletdb_fn);
+	callback();
+}
+
+function write_datastore(callback)
+{
+	var tmp_fn = walletdb_fn + ".tmp";
+
+	try {
+		EncFile.writeJFileSync(ENC_METHOD, argv.pass, tmp_fn,datastore);
+		fs.rename(tmp_fn, walletdb_fn, callback);
+	} catch(e) {
+		console.error("Failed to write wallet.");
+		callback(e);
+	}
+}
+
+function main()
+{
+	if (argv._.length == 0) {
+		console.error("No command specified.");
+		list_commands();
+		return;
+	}
+
+	var cmd = argv._[0];
+	
+	if (cmd != 'init' && cmd != 'help' && cmd != 'clean') {
+		read_datastore(function(err) {});
+	}
+
+	switch (cmd) {
+
+	case "clean":
+		remove_datastore(function(err) {});
+		break;
+
+	case "dump":
+		console.dir(datastore);
+		break;
+
+	default:
+		console.error("Unknown command", cmd);
+		// fall through
+
+	case "help":
+		list_commands();
+		return;
+	
+	case "init":
+		write_datastore(function(err) {});
+		break;
+	}
+}
+
+main();
+
