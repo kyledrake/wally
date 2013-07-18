@@ -9,8 +9,6 @@ var KeyModule = require('libcoin/Key');
 var coinUtil = require('libcoin/util/util');
 var networks = require('libcoin/networks');
 var Address = require('libcoin/Address').class();
-var PeerManager = require('libcoin/PeerManager').class();
-var Peer = require('libcoin/Peer').class();
 var ENC_METHOD = 'aes-256-cbc';
 
 var argv = require('optimist')
@@ -165,6 +163,12 @@ function netsync_connected(data)
 
 function cmd_netsync()
 {
+	var config = {
+		network: network.name
+	};
+	var PeerManager = require('libcoin/PeerManager').createClass({config: config});
+	var Peer = require('libcoin/Peer').class();
+
 	console.log("netsync begins");
 
 	var peerman = new PeerManager();
