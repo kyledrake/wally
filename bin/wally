@@ -9,18 +9,23 @@ var KeyModule = require('libcoin/Key');
 var coinUtil = require('libcoin/util/util');
 var networks = require('libcoin/networks');
 var Address = require('libcoin/Address').class();
+var PeerManager = require('libcoin/PeerManager').class();
+var Peer = require('libcoin/Peer').class();
 var ENC_METHOD = 'aes-256-cbc';
 
 var argv = require('optimist')
 	.usage('Bitcoin SPV wallet client\nUsage: $0 [options] COMMAND [command parameters]')
 	.alias('f', 'file')
 	.describe('f', 'Load/store wallet to/from encrypted JSON file')
+	.alias('p', 'peers')
+	.describe('p', 'JSON file containing network peers')
 	.alias('P', 'pass')
 	.describe('P', 'Passphrase')
 	.demand(['P'])
 	.argv
 ;
 var walletdb_fn = argv.file ? argv.file : 'walletdb.aes';
+var peerdb_fn = argv.peers ? argv.peers : 'peerdb.json';
 
 // blank wallet
 var datastore = {
@@ -28,6 +33,7 @@ var datastore = {
 	version: 1,
 	keys: [],
 };
+var peerdb = undefined;
 var network = undefined;
 
 function list_commands()
@@ -102,6 +108,20 @@ function wallet_load()
 	network_load(datastore['network']);
 }
 
+function peerdb_load()
+{
+	try {
+		peerdb = JSON.parse(fs.readFileSync(peerdb_fn));
+	} catch(d) {
+		console.warn('Unable to read peer db', peerdb_fn, 'creating new one.');
+		peerdb = [
+			{ ipv4: '127.0.0.1', port: 18333 },
+		];
+
+		fs.writeFileSync(peerdb_fn, JSON.stringify(peerdb));
+	}
+}
+
 function cmd_init()
 {
 	if (argv._.length > 1)
@@ -132,6 +152,35 @@ function cmd_key_new()
 	console.log(addr.toString());
 }
 
+function netsync_connected(data)
+{
+	var peerman = data.pm;
+
+	console.log("We connected.  Hurrah.");
+
+	peerman.stop();
+	
+	console.log("netsync ends");
+}
+
+function cmd_netsync()
+{
+	console.log("netsync begins");
+
+	var peerman = new PeerManager();
+
+	peerdb.forEach(function(datum) {
+		var peer = new Peer(datum.ipv4, datum.port);
+		peerman.addPeer(peer);
+	});
+
+	peerman.on('connect', function(data) {
+		netsync_connected(data);
+	});
+
+	peerman.start();
+}
+
 function main()
 {
 	if (argv._.length == 0) {
@@ -145,6 +194,8 @@ function main()
 	if (cmd != 'init' && cmd != 'help' && cmd != 'clean') {
 		wallet_load();
 	}
+
+	peerdb_load();
 
 	switch (cmd) {
 
@@ -170,6 +221,10 @@ function main()
 
 	case "key.new":
 		cmd_key_new();
+		break;
+
+	case "netsync":
+		cmd_netsync();
 		break;
 	}
 }
